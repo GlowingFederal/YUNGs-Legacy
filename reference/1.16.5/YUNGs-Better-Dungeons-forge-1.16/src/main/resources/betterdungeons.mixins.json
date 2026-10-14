@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "com.yungnickyoung.minecraft.betterdungeons.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "betterdungeons.refmap.json",
+  "mixins": [
+    "DungeonContextMixin",
+    "ChunkGeneratorAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "minVersion": "0.8"
+}

@@ -1,0 +1,13 @@
+modLoader="javafml"
+loaderVersion="[35,)"
+license="LGPLv3"
+issueTrackerURL="https://github.com/yungnickyoung/YUNGs-Api/issues"
+
+[[mods]]
+	modId="${modId}"
+	version="${version}"
+	displayName="${modName}"
+	credits="${modCredits}"
+	authors="${modAuthor}"
+	description="${modDescription}"
+	displayURL="https://www.curseforge.com/minecraft/mc-mods/yungs-api"
