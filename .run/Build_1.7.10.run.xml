@@ -1,11 +1,11 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Build 1.7.10" type="GradleRunConfiguration" factoryName="Gradle">
+  <configuration default="false" name="Better Caves Build 1.7.10" type="GradleRunConfiguration" factoryName="Gradle">
     <ExternalSystemSettings>
       <option name="externalProjectPath" value="$PROJECT_DIR$" />
       <option name="externalSystemIdString" value="GRADLE" />
       <option name="taskNames">
         <list>
-          <option value="build1_7_10" />
+          <option value="buildBetterCaves1_7_10" />
         </list>
       </option>
     </ExternalSystemSettings>

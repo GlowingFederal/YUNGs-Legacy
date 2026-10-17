@@ -1,2 +1,7 @@
 rootProject.name = 'YUNGs-Legacy'
-include 'common'
+// Only product-owned portable code participates in this build. Native targets use their own wrappers.
+file('mods').listFiles().findAll { new File(it, 'common/build.gradle').isFile() }.sort().each { product ->
+    def id = product.name.split('-').collect { it.capitalize() }.join('').uncapitalize() + 'Common'
+    include id
+    project(":${id}").projectDir = new File(product, 'common')
+}

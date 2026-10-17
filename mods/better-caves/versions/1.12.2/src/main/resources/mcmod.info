@@ -1,0 +1,20 @@
+[
+  {
+    "modid": "bettercaves",
+    "name": "YUNG's Better Caves",
+    "description": "YUNG's Better Caves legacy terrain generation: caves, caverns and flooded regions.",
+    "version": "${fullVersion}",
+    "mcversion": "${minecraftTarget}",
+    "url": "",
+    "authorList": [
+      "GlowingFederal"
+    ],
+    "credits": "Better Caves by YUNGNICKYOUNG; FastNoise by Jordan Peck; OpenSimplex2S by K.jpg. See bundled license notices.",
+    "logoFile": "",
+    "screenshots": [],
+    "requiredMods": [],
+    "dependencies": [],
+    "dependants": [],
+    "useDependencyInformation": true
+  }
+]

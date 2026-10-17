@@ -1,0 +1,2 @@
+// Inactive scaffolding retained for future native ports; never included by repository release tasks.
+plugins { id 'base' }

@@ -7,7 +7,7 @@ run/
 run-data/
 runs/
 eclipse/
-/.idea/
+.idea/
 *.iml
 # Legacy Gradle idea/IDEA workspace generation outside the .idea directory.
 *.ipr

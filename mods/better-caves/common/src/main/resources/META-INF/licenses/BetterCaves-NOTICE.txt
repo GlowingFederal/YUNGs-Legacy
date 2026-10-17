@@ -1,0 +1,9 @@
+Better Caves legacy terrain implementation
+Adapted from YUNG's Better Caves 1.16, by YUNGNICKYOUNG (Nick Young), LGPL-3.0.
+Reference: reference/1.16.5/YUNGs-Better-Caves-1.16/ in the source repository.
+FastNoise: Jordan Peck, MIT; private package relocation and local vector holders.
+OpenSimplex2S: K.jpg / KdotJPG, CC0-1.0. Obtained directly from:
+https://github.com/KdotJPG/OpenSimplex2/blob/e09a94744b3d69e4c58ce615445f18712cb50104/_old/java/OpenSimplex2S.java
+License from the same revision. This is not the retained YUNGs API adaptation.
+Fractal composition, controllers and native legacy adapters are local adaptations.
+No YUNGs API bootstrap, classes, or runtime dependency is bundled.

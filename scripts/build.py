@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dispatch pinned wrappers and coordinate a repository-wide production transaction."""
+"""Dispatch pinned wrappers and coordinate product-owned production transactions."""
 import argparse
 import json
 import os
@@ -12,8 +12,10 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION_FILE = ROOT / "version.properties"
-VERSIONS = ("1.6.4", "1.7.10", "1.8.9", "1.12.2")
+PRODUCT_ROOT = None
+VERSION_FILE = None
+VERSIONS = ()
+COMMON_TASK = None
 
 
 def read_version():
@@ -34,7 +36,7 @@ def persist_version(original, number):
     if VERSION_FILE.read_bytes() != original:
         raise RuntimeError("version.properties changed during the build; refusing to overwrite it")
     updated = re.sub(rb"(?m)^(\s*build_number\s*[:=]\s*)[0-9]+", lambda m: m[1] + str(number).encode(), original, count=1)
-    fd, name = tempfile.mkstemp(prefix=".version-", suffix=".tmp", dir=ROOT)
+    fd, name = tempfile.mkstemp(prefix=".version-", suffix=".tmp", dir=PRODUCT_ROOT)
     try:
         with os.fdopen(fd, "wb") as stream:
             stream.write(updated)
@@ -60,8 +62,8 @@ def run(directory, tasks, release=None, warning_mode=None):
 
 def verification_settings(mc, full_version):
     """Resolve project expectations without allocating or persisting a version."""
-    project = json.loads((ROOT / "verification.json").read_text(encoding="utf-8"))
-    runtime = json.loads((ROOT / "versions" / mc / "target.json").read_text(encoding="utf-8"))
+    project = json.loads((PRODUCT_ROOT / "verification.json").read_text(encoding="utf-8"))
+    runtime = json.loads((PRODUCT_ROOT / "versions" / mc / "target.json").read_text(encoding="utf-8"))
     target = project["targets"][mc]
     values = {**project, **runtime, **target, "mc": mc, "full_version": full_version,
               "package_path": project["base_package"].replace(".", "/")}
@@ -135,6 +137,10 @@ def check_json(text, expectations, label):
 def check_metadata(text, metadata, label):
     if "${" in text:
         raise RuntimeError(f"{label} contains unexpanded metadata tokens")
+    if "json_mod_count" in metadata:
+        records = json.loads(text)
+        if not isinstance(records, list) or len(records) != metadata["json_mod_count"]:
+            raise RuntimeError(f"{label} has unexpected mod metadata records")
     if "json_values" in metadata:
         check_json(text, metadata["json_values"], label)
     # Match all requested fields within the same TOML table instance, including
@@ -163,7 +169,7 @@ def verify(mc, full_version, directory=None):
     filename = config["archive_pattern"]
     if Path(filename).name != filename or not filename.endswith(".jar") or filename.endswith("-dev.jar"):
         raise ValueError("archive_pattern must name a production JAR, without directories or -dev suffix")
-    jar = (directory or ROOT / "versions" / mc / "build" / "libs") / filename
+    jar = (directory or PRODUCT_ROOT / "versions" / mc / "build" / "libs") / filename
     if not jar.is_file():
         raise RuntimeError(f"Missing required distributable: {jar}")
     with zipfile.ZipFile(jar) as archive:
@@ -194,6 +200,21 @@ def verify(mc, full_version, directory=None):
                 if major > expected or (path in required_classes and major != expected):
                     raise RuntimeError(f"{path} has class version {major}, target expects {expected}")
                 classes[path] = symbols
+        mod_descriptors = {"Lcpw/mods/fml/common/Mod;", "Lnet/minecraftforge/fml/common/Mod;"}
+        entrypoints = [path for path, symbols in classes.items() if mod_descriptors & symbols]
+        expected_entrypoint = config["entrypoint_class"]
+        if entrypoints != [expected_entrypoint]:
+            raise RuntimeError(f"{jar.name} has unexpected mod entry points: {entrypoints}")
+        for path, symbols in classes.items():
+            if any("yungslegacybootstrap" in symbol.lower() or "yungsapi" in symbol.lower()
+                   or "com/glowingfederal/yungslegacy/" in symbol for symbol in symbols):
+                raise RuntimeError(f"{jar.name} contains a bootstrap/API dependency in {path}")
+        allowed_files = {"META-INF/MANIFEST.MF", config["metadata"]["path"]}
+        allowed_files.update(config["required_assets"])
+        for path in names:
+            if (not path.endswith(("/", ".class")) and path not in allowed_files
+                    and not any(path.startswith(prefix) for prefix in config["resource_roots"])):
+                raise RuntimeError(f"{jar.name} contains an unexpected resource: {path}")
         if full_version not in classes[config["version_class"]]:
             raise RuntimeError(f"{jar.name} has an inconsistent generated version constant")
         for check in config["remapping"]["checks"]:
@@ -204,7 +225,7 @@ def verify(mc, full_version, directory=None):
             check_json(archive.read(check["path"]).decode("utf-8"), check["values"], check["path"])
         check_metadata(archive.read(config["metadata"]["path"]).decode("utf-8"), config["metadata"], jar.name)
         manifest = archive.read("META-INF/MANIFEST.MF").decode("utf-8").replace("\r\n", "\n").replace("\n ", "")
-        if mc == "1.6.4" and any(line.startswith(("Class-Path:", "FMLCorePlugin:", "Premain-Class:", "Agent-Class:"))
+        if any(line.startswith(("Class-Path:", "FMLCorePlugin:", "Premain-Class:", "Agent-Class:"))
                                    for line in manifest.splitlines()):
             raise RuntimeError(f"{jar.name} declares an unexpected launch/bootstrap dependency")
         for field, value in (("Implementation-Version", full_version), ("Implementation-Title", config["display_name"])):
@@ -214,7 +235,7 @@ def verify(mc, full_version, directory=None):
     return jar
 
 
-def main():
+def product_main(argv):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("build", "all", "test", "client", "server", "plan", "verify", "persist", "clean"))
     parser.add_argument("target", nargs="?", choices=VERSIONS)
@@ -222,11 +243,11 @@ def main():
     parser.add_argument("--artifacts", type=Path)
     parser.add_argument("--number", type=int)
     parser.add_argument("--skip-common-tests", action="store_true",
-                        help="For root Gradle launchers whose :common:test prerequisite already passed")
+                        help="For root Gradle launchers whose product common test prerequisite already passed")
     parser.add_argument("--dry-run", action="store_true", help="Inspect the native client/server task graph without launching")
     parser.add_argument("--warning-mode", choices=("all", "summary", "fail"),
                         help="Forward Gradle diagnostics to every invoked wrapper without filtering output")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.skip_common_tests and args.action not in ("all", "test"):
         parser.error("--skip-common-tests is only valid for all or test")
     if args.dry_run and args.action not in ("client", "server"):
@@ -237,11 +258,11 @@ def main():
         tasks = ["runClient" if args.action == "client" else "runServer"]
         if args.dry_run:
             tasks.append("--dry-run")
-        return run(ROOT / "versions" / args.target, tasks, warning_mode=args.warning_mode)
+        return run(PRODUCT_ROOT / "versions" / args.target, tasks, warning_mode=args.warning_mode)
     if args.action == "clean":
         status = 0
         for mc in VERSIONS:
-            status = run(ROOT / "versions" / mc, ["clean"], warning_mode=args.warning_mode) or status
+            status = run(PRODUCT_ROOT / "versions" / mc, ["clean"], warning_mode=args.warning_mode) or status
         return status
     original, semantic, number = read_version()
     if args.action == "plan":
@@ -260,19 +281,19 @@ def main():
         persist_version(original, args.number + 1)
         return 0
     if args.action == "test":
-        status = 0 if args.skip_common_tests else run(ROOT, [":common:test"], warning_mode=args.warning_mode)
+        status = 0 if args.skip_common_tests else run(ROOT, [COMMON_TASK], warning_mode=args.warning_mode)
         for mc in VERSIONS:
-            status = run(ROOT / "versions" / mc, ["test"], warning_mode=args.warning_mode) or status
+            status = run(PRODUCT_ROOT / "versions" / mc, ["test"], warning_mode=args.warning_mode) or status
         return status
     if args.action == "build":
         if not args.target:
             parser.error("build requires a target")
-        status = run(ROOT / "versions" / args.target, ["build"], warning_mode=args.warning_mode)
+        status = run(PRODUCT_ROOT / "versions" / args.target, ["build"], warning_mode=args.warning_mode)
         if status == 0:
             _, semantic, number = read_version()
             verify(args.target, f"{semantic}.{number - 1}")
         return status
-    lock = ROOT / ".build-number.lock"
+    lock = PRODUCT_ROOT / ".build-number.lock"
     try:
         lock.mkdir()
     except FileExistsError:
@@ -280,12 +301,12 @@ def main():
     try:
         # Re-read while holding the same lock used by direct Gradle builds.
         original, semantic, number = read_version()
-        status = 0 if args.skip_common_tests else run(ROOT, [":common:test"], warning_mode=args.warning_mode)
+        status = 0 if args.skip_common_tests else run(ROOT, [COMMON_TASK], warning_mode=args.warning_mode)
         if status:
             return status
         failures = []
         for mc in VERSIONS:
-            result = run(ROOT / "versions" / mc, ["build"], (semantic, number), warning_mode=args.warning_mode)
+            result = run(PRODUCT_ROOT / "versions" / mc, ["build"], (semantic, number), warning_mode=args.warning_mode)
             if result:
                 failures.append(mc)
             else:
@@ -301,6 +322,32 @@ def main():
         return 0
     finally:
         lock.rmdir()
+
+
+def main():
+    global PRODUCT_ROOT, VERSION_FILE, VERSIONS, COMMON_TASK
+    # Discover products rather than treating the repository itself as a mod.
+    selection = argparse.ArgumentParser(add_help=False)
+    selection.add_argument("--mod")
+    selected, argv = selection.parse_known_args()
+    products = sorted(path.parent for path in (ROOT / "mods").glob("*/verification.json"))
+    if selected.mod:
+        products = [path for path in products if path.name == selected.mod]
+        if not products:
+            raise ValueError(f"Unknown product: {selected.mod}")
+    if len(products) > 1 and (not argv or argv[0] not in ("all", "test", "clean")):
+        raise ValueError("Select a product with --mod <product> for this action")
+    if not products:
+        raise ValueError("No production products found under mods/")
+    status = 0
+    for product in products:
+        PRODUCT_ROOT = product
+        VERSION_FILE = product / "version.properties"
+        VERSIONS = tuple(json.loads((product / "verification.json").read_text(encoding="utf-8"))["targets"])
+        words = product.name.split("-")
+        COMMON_TASK = ":" + words[0] + "".join(word.title() for word in words[1:]) + "Common:test"
+        status = product_main(argv) or status
+    return status
 
 
 if __name__ == "__main__":

@@ -1,11 +1,11 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Run Server 1.12.2" type="GradleRunConfiguration" factoryName="Gradle">
+  <configuration default="false" name="Better Caves Run Server 1.12.2" type="GradleRunConfiguration" factoryName="Gradle">
     <ExternalSystemSettings>
-      <option name="externalProjectPath" value="$PROJECT_DIR$" />
+      <option name="externalProjectPath" value="$PROJECT_DIR$/mods/better-caves/versions/1.12.2" />
       <option name="externalSystemIdString" value="GRADLE" />
       <option name="taskNames">
         <list>
-          <option value="runServer1_12_2" />
+          <option value="runServer" />
         </list>
       </option>
     </ExternalSystemSettings>

@@ -3,7 +3,7 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.AtomicMoveNotSupportedException
 
 // Shared by old and new Gradle. No configuration-cache support: this owns a transaction.
-ext.archiveVerification = new groovy.json.JsonSlurper().parse(new File(project.ext.repositoryRoot, 'verification.json'))
+ext.archiveVerification = new groovy.json.JsonSlurper().parse(new File(project.ext.productRoot, 'verification.json'))
 def verification = project.ext.archiveVerification
 def packagePath = verification.base_package.replace('.', '/')
 def versionClassPath = verification.version_class.replace('{package_path}', packagePath)
@@ -12,7 +12,7 @@ def archiveName = { String full ->
             .replace('{full_version}', full).replace('{mc}', project.minecraftTarget)
             .replace('{loader}', project.loaderTarget)
 }
-def versionFile = new File(project.ext.repositoryRoot, 'version.properties')
+def versionFile = new File(project.ext.productRoot, 'version.properties')
 if (!versionFile.exists()) {
     versionFile.text = 'mod_version=1.0.0\nbuild_number=1\n'
 }
@@ -42,7 +42,7 @@ version = fullVersion
 // Task actions read this detached state, updated by the existing allocator before execution.
 ext.modVersionState = [fullVersion: fullVersion]
 
-def lockDirectory = new File(project.ext.repositoryRoot, '.build-number.lock')
+def lockDirectory = new File(project.ext.productRoot, '.build-number.lock')
 def ownsLock = false
 def production = false
 def coordinated = project.hasProperty('releaseBuildNumber')
@@ -74,7 +74,7 @@ gradle.taskGraph.whenReady { graph ->
         def requestedNumber = project.property('releaseBuildNumber').toString()
         if (!(requestedNumber ==~ /[0-9]+/) || requestedNumber.toBigInteger() > Long.MAX_VALUE - 1 ||
                 project.property('releaseModVersion').toString() != semantic || requestedNumber.toLong() != oldNumber) {
-            throw new GradleException('Coordinated release must use root mod_version and the next build_number')
+            throw new GradleException('Coordinated release must use product mod_version and the next build_number')
         }
         applyNumber(requestedNumber.toLong())
     } else if (production) {
