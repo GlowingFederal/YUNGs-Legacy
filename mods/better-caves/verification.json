@@ -38,6 +38,43 @@
     }
   },
   "targets": {
+    "1.6.4": {
+      "metadata_profile": "legacy",
+      "required_classes": [
+        "{package_path}/NativeHooks.class",
+        "{package_path}/NativeTerrain.class"
+      ],
+      "required_assets": [
+        "META-INF/licenses/BetterCaves-NOTICE.txt",
+        "META-INF/licenses/BetterCaves-LGPL.txt",
+        "META-INF/licenses/FastNoise-MIT.txt",
+        "META-INF/licenses/OpenSimplex2S-CC0.txt"
+      ],
+      "json_checks": [],
+      "remapping": {
+        "required": true,
+        "checks": [
+          {
+            "class": "{package_path}/BetterCavesCommand.class",
+            "present": [
+              "func_71518_a"
+            ],
+            "absent": [
+              "getCommandName"
+            ]
+          },
+          {
+            "class": "{package_path}/NativeHooks$Caves.class",
+            "present": [
+              "func_75036_a"
+            ],
+            "absent": [
+              "generate"
+            ]
+          }
+        ]
+      }
+    },
     "1.7.10": {
       "metadata_profile": "legacy",
       "required_classes": [
@@ -69,6 +106,43 @@
               "func_151539_a"
             ],
             "absent": []
+          }
+        ]
+      }
+    },
+    "1.8.9": {
+      "metadata_profile": "legacy",
+      "required_classes": [
+        "{package_path}/NativeHooks.class",
+        "{package_path}/NativeTerrain.class"
+      ],
+      "required_assets": [
+        "META-INF/licenses/BetterCaves-NOTICE.txt",
+        "META-INF/licenses/BetterCaves-LGPL.txt",
+        "META-INF/licenses/FastNoise-MIT.txt",
+        "META-INF/licenses/OpenSimplex2S-CC0.txt"
+      ],
+      "json_checks": [],
+      "remapping": {
+        "required": true,
+        "checks": [
+          {
+            "class": "{package_path}/BetterCavesCommand.class",
+            "present": [
+              "func_71518_a"
+            ],
+            "absent": [
+              "getCommandName"
+            ]
+          },
+          {
+            "class": "{package_path}/NativeHooks$Caves.class",
+            "present": [
+              "func_175792_a"
+            ],
+            "absent": [
+              "generate"
+            ]
           }
         ]
       }

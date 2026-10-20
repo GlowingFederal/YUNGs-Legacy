@@ -1,0 +1,41 @@
+plugins { id 'java'; id 'xyz.wagyourtail.unimined' version '1.4.1' }
+ext.repositoryRoot = file('../../../..')
+ext.productRoot = file('../..')
+ext.minecraftTarget = '1.8.9'
+ext.loaderTarget = 'forge'
+ext.loaderVersion = '1.8.9-11.15.1.2318-1.8.9'
+ext.javaTarget = 8
+apply from: new File(repositoryRoot, 'build-logic/version.gradle')
+apply from: new File(repositoryRoot, 'build-logic/shared.gradle')
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+// Unimined scans the development classpath for tweakers. The merged universal
+// manifest advertises FMLTweaker, while runServer already selects FMLServerTweaker;
+// loading both installs FML's security manager twice. Strip that launch manifest
+// from a development-only copy, leaving Minecraft/Forge classes and releases intact.
+def serverRuntime = objects.fileCollection()
+def prepareServerRuntime = tasks.register('prepareServerForgeRuntime', Jar) {
+    from provider { zipTree(serverRuntime.singleFile) }
+    exclude 'META-INF/MANIFEST.MF'
+    archiveFileName = 'minecraft-forge.jar'
+    destinationDirectory = layout.buildDirectory.dir('forge189-runtime/server')
+}
+tasks.matching { it.name == 'preRunServer' }.configureEach { dependsOn prepareServerRuntime }
+unimined.minecraft {
+    version '1.8.9'
+    // Forge's transformer supplies SRG mappings; retain the stable MCP name layer.
+    mappings { mcp('stable', '22-1.8.9') }
+    runs {
+        config('client') { javaVersion = JavaVersion.VERSION_1_8 }
+        config('server') {
+            javaVersion = JavaVersion.VERSION_1_8
+            standardInput = System.in
+            def originalClasspath = classpath
+            def minecraftJar = originalClasspath.filter { it.name.startsWith('forge-1.8.9-') && it.name.endsWith('.jar') }
+            serverRuntime.from(minecraftJar)
+            classpath = originalClasspath - minecraftJar + files(layout.buildDirectory.file('forge189-runtime/server/minecraft-forge.jar'))
+        }
+    }
+    minecraftForge { loader '11.15.1.2318-1.8.9' }
+    
+}
+jar.finalizedBy 'remapJar'
